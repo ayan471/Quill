@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { openai } from "@/lib/openai";
-import { getPineconeClient } from "@/lib/pinecone";
+import { pinecone } from "@/lib/pinecone";
 import { SendMessageValidator } from "@/lib/validators/SendMessageValidators";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
@@ -36,15 +36,14 @@ export const POST = async (req: NextRequest) => {
   });
 
   // vectorize message
+  const pineconeIndex = pinecone.Index("quill").namespace(userId);
+
   const embeddings = new OpenAIEmbeddings({
     openAIApiKey: process.env.OPENAI_API_KEY,
   });
-  const pinecone = await getPineconeClient();
-  const pineconeIndex = pinecone.Index("quill");
 
   const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
     pineconeIndex,
-    namespace: file.id,
   });
 
   const results = await vectorStore.similaritySearch(message, 4);
@@ -64,7 +63,7 @@ export const POST = async (req: NextRequest) => {
   }));
 
   const response = await openai.chat.completions.create({
-    model: "gpt-3.5-turbo",
+    model: "gpt-3.5-turbo-16k",
     temperature: 0,
     stream: true,
     messages: [
